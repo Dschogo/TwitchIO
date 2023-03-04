@@ -32,11 +32,13 @@ __all__ = (
     "channel_points",
     "channel_subscriptions",
     "moderation_user_action",
+    "automod_queue",
     "whispers",
 )
 
 
 class _topic:
+
     __slots__ = "__topic__", "__args__"
 
     def __init__(self, topic: str, args: List[Type]):
@@ -101,4 +103,5 @@ bits_badge = _topic("channel-bits-badge-unlocks.{0}", [int])
 channel_points = _topic("channel-points-channel-v1.{0}", [int])
 channel_subscriptions = _topic("channel-subscribe-events-v1.{0}", [int])
 moderation_user_action = _topic("chat_moderator_actions.{0}.{1}", [int, int])
+automod_queue = _topic("automod-queue.{0}.{1}", [int, int])
 whispers = _topic("whispers.{0}", [int])
