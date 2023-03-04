@@ -42,6 +42,7 @@ __all__ = (
     "PubSubModerationActionBanRequest",
     "PubSubModerationActionChannelTerms",
     "PubSubChannelSubscribe",
+    "PubSubAutomodMessage",
 )
 
 
@@ -344,6 +345,48 @@ class PubSubModerationActionChannelTerms(PubSubMessage):
             parse_timestamp(data["message"]["data"]["updated_at"]) if data["message"]["data"]["updated_at"] else None
         )
 
+class PubSubAutomodMessage(PubSubMessage):
+
+    """
+    A channel Terms update.
+
+    Attributes
+    -----------
+    type: :class:`str`
+        The type of action taken.
+    channel_id: :class:`int`
+        The channel id the action occurred on.
+    id: :class:`str`
+        The id of the Event.
+    text: :class:`str`
+        The full message text.
+    created_by: :class:`twitchio.PartialUser`
+        The user that wrote the Message.
+    fragments: :class:`dict`
+        The actual Nested fragment dict returned by Twitch
+        (doc needs improvement)
+    resolver: :class:`twitchio.PartialUser`
+        The user/mod that resolved the Message. (can be none if status is pending)
+    """
+    __slots__ = "type", "id", "channel_id", "text", "created_by", "status", "fragments", "resolver"
+
+    def __init__(self, client: Client, topic: str, data: dict):
+        super().__init__(client, topic, data)
+        self.type: str = data["message"]["type"]
+        self.channel_id: int = int(data["topic"].split(".")[-1])
+        self.id: str = data["message"]["data"]["message"]["id"]
+        self.text: str = data["message"]["data"]["message"]["content"]["text"]
+        
+        self.created_by = PartialUser(
+            client._http, data["message"]["data"]["message"]["sender"]["user_id"], data["message"]["data"]["message"]["sender"]["login"]
+        )
+        self.status: str = data["message"]["data"]["status"]
+        self.fragments: dict = data["message"]["data"]["message"]["content"]["fragments"]
+
+        self.resolver = PartialUser(
+            client._http, data["message"]["data"]["resolver_id"], data["message"]["data"]["resolver_login"]
+        ) if data["message"]["data"]["resolver_id"] else None
+
 
 class PubSubChannelSubscribe(PubSubMessage):
     """
@@ -494,6 +537,7 @@ _mapping = {
     "channel-subscribe-events-v1": ("pubsub_subscription", PubSubChannelSubscribe),
     "chat_moderator_actions": ("pubsub_moderation", _find_mod_action),
     "channel-points-channel-v1": ("pubsub_channel_points", PubSubChannelPointsMessage),
+    "automod-queue": ("automod_queue", PubSubAutomodMessage),
     "whispers": ("pubsub_whisper", None),
 }
 
