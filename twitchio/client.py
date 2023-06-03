@@ -29,8 +29,9 @@ import logging
 import traceback
 import sys
 from typing import Union, Callable, List, Optional, Tuple, Any, Coroutine, Dict
+from typing_extensions import Literal
 
-from twitchio.errors import HTTPException, AuthenticationError
+from twitchio.errors import HTTPException
 from . import models
 from .websocket import WSConnection
 from .http import TwitchHTTP
@@ -648,6 +649,7 @@ class Client:
         user_logins: Optional[List[str]] = None,
         languages: Optional[List[str]] = None,
         token: Optional[str] = None,
+        type: Literal["all", "live"] = "all",
     ):
         """|coro|
 
@@ -665,6 +667,8 @@ class Client:
             language for the stream(s). ISO 639-1 or two letter code for supported stream language
         token: Optional[:class:`str`]
             An optional OAuth token to use instead of the bot OAuth token
+        type: Literal["all", "live"]
+            One of ``"all"`` or ``"live"``. Defaults to ``"all"``. Specifies what type of stream to fetch.
 
         Returns
         --------
@@ -672,12 +676,12 @@ class Client:
         """
         from .models import Stream
 
-        assert user_ids or game_ids or user_logins
         data = await self._http.get_streams(
             game_ids=game_ids,
             user_ids=user_ids,
             user_logins=user_logins,
             languages=languages,
+            type_=type,
             token=token,
         )
         return [Stream(self._http, x) for x in data]
@@ -809,6 +813,18 @@ class Client:
         None
         """
         await self._http.put_user_chat_color(token=token, user_id=str(user_id), color=color)
+
+    async def fetch_global_chat_badges(self):
+        """|coro|
+
+        Fetches Twitch's list of chat badges, which users may use in any channel's chat room.
+
+        Returns:
+        List[:class:`twitchio.ChatBadge`]
+        """
+
+        data = await self._http.get_global_chat_badges()
+        return [models.ChatBadge(x) for x in data]
 
     async def get_webhook_subscriptions(self):
         """|coro|
@@ -1039,3 +1055,54 @@ class Client:
             The channel name that was attempted to be joined.
         """
         logger.error(f'The channel "{channel}" was unable to be joined. Check the channel is valid.')
+
+    async def event_raw_notice(self, data: str):
+        """|coro|
+
+
+        Event called with the raw NOTICE data received by Twitch.
+
+        Parameters
+        ------------
+        data: str
+            The raw NOTICE data received from Twitch.
+
+        Example
+        ---------
+        .. code:: py
+
+            @bot.event()
+            async def event_raw_notice(data):
+                print(data)
+        """
+        pass
+
+    async def event_notice(self, message: str, msg_id: Optional[str], channel: Optional[Channel]):
+        """|coro|
+
+
+        Event called with the NOTICE data received by Twitch.
+
+        .. tip::
+
+            For more information on NOTICE msg_ids visit:
+            https://dev.twitch.tv/docs/irc/msg-id/
+
+        Parameters
+        ------------
+        message: :class:`str`
+            The message of the NOTICE.
+        msg_id: Optional[:class:`str`]
+            The msg_id that indicates what the NOTICE type.
+        channel: Optional[:class:`~twitchio.Channel`]
+            The channel the NOTICE message originated from.
+
+        Example
+        ---------
+        .. code:: py
+
+            @bot.event()
+            async def event_notice(message, msg_id, channel):
+                print(message)
+        """
+        pass

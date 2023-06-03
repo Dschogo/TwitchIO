@@ -27,6 +27,7 @@ import copy
 import datetime
 import logging
 from typing import TYPE_CHECKING, Union, List, Tuple, Any, Dict, Optional
+from typing_extensions import Literal
 
 import aiohttp
 from yarl import URL
@@ -206,14 +207,15 @@ class TwitchHTTP:
                         return await resp.json(), False
                     return await resp.text(encoding="utf-8"), True
                 if resp.status == 401:
-                    if "WWW-Authenticate" in resp.headers:
+                    message_json = await resp.json()
+                    if "Invalid OAuth token" in message_json.get("message", ""):
                         try:
                             await self._generate_login()
                         except:
                             raise errors.Unauthorized(
                                 "Your oauth token is invalid, and a new one could not be generated"
                             )
-                    print(resp.reason, await resp.json(), resp)
+                    print(resp.reason, message_json, resp)
                     raise errors.Unauthorized("You're not authorized to use this route.")
                 if resp.status == 429:
                     reason = "Ratelimit Reached"
@@ -676,9 +678,10 @@ class TwitchHTTP:
         user_ids: Optional[List[int]] = None,
         user_logins: Optional[List[str]] = None,
         languages: Optional[List[str]] = None,
+        type_: Literal["all", "live"] = "all",
         token: Optional[str] = None,
     ):
-        q = []
+        q = [("type", type_)]
         if game_ids:
             q.extend(("game_id", str(g)) for g in game_ids)
         if user_ids:
@@ -1127,3 +1130,9 @@ class TwitchHTTP:
             ("to_broadcaster_id", to_broadcaster_id),
         ]
         return await self.request(Route("POST", "chat/shoutouts", query=q, token=token))
+
+    async def get_global_chat_badges(self):
+        return await self.request(Route("GET", "chat/badges/global", ""))
+
+    async def get_channel_chat_badges(self, broadcaster_id: str):
+        return await self.request(Route("GET", "chat/badges", "", query=[("broadcaster_id", broadcaster_id)]))

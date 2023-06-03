@@ -95,7 +95,7 @@ class Chatter(PartialChatter):
         "_badges",
         "_cached_badges",
         "_ws",
-        "id",
+        "_id",
         "_turbo",
         "_sub",
         "_mod",
@@ -113,7 +113,7 @@ class Chatter(PartialChatter):
         self._cached_badges: Optional[Dict[str, str]] = None
 
         if not self._tags:
-            self.id = None
+            self._id = None
             self._badges = None
             self._turbo = None
             self._sub = None
@@ -123,7 +123,7 @@ class Chatter(PartialChatter):
             self._vip = None
             return
 
-        self.id = self._tags.get("user-id")
+        self._id = self._tags.get("user-id")
         self._badges = self._tags.get("badges")
         self._turbo = self._tags.get("turbo")
         self._sub = int(self._tags["subscriber"])
@@ -157,9 +157,14 @@ class Chatter(PartialChatter):
         return self._cached_badges.copy() if self._cached_badges else {}
 
     @property
-    def display_name(self) -> str:
-        """The users display name."""
+    def display_name(self) -> Optional[str]:
+        """The user's display name."""
         return self._display_name
+
+    @property
+    def id(self) -> Optional[str]:
+        """The user's id."""
+        return self._id
 
     @property
     def mention(self) -> str:
