@@ -190,42 +190,61 @@ class TwitchHTTP:
                 await self.bucket.wait_reset()
             async with self.session.request(route.method, path, headers=headers, data=route.body) as resp:
                 try:
-                    logger.debug(f"Received a response from a request with status {resp.status}: {await resp.json()}")
+                    message = await resp.text(encoding="utf-8")
+                    logger.debug(f"Received a response from a request with status {resp.status}: {message}")
                 except Exception:
+                    message = None
                     logger.debug(f"Received a response from a request with status {resp.status} and without body")
+
                 if 500 <= resp.status <= 504:
                     reason = resp.reason
                     await asyncio.sleep(2**attempt + 1)
                     continue
+
                 if utilize_bucket:
                     reset = resp.headers.get("Ratelimit-Reset")
                     remaining = resp.headers.get("Ratelimit-Remaining")
 
                     self.bucket.update(reset=reset, remaining=remaining)
+
                 if 200 <= resp.status < 300:
-                    if resp.content_type == "application/json":
-                        return await resp.json(), False
-                    return await resp.text(encoding="utf-8"), True
-                if resp.status == 401:
-                    message_json = await resp.json()
+                    if resp.content_type == "application/json" and message:
+                        return json.loads(message), False
+
+                    return message, True
+
+                elif resp.status == 400:
+                    message_json = json.loads(message)
+                    raise errors.HTTPException(
+                        f"Failed to fulfill the request", reason=message_json.get("message", ""), status=resp.status
+                    )
+
+                elif resp.status == 401:
+                    message_json = json.loads(message)
                     if "Invalid OAuth token" in message_json.get("message", ""):
                         try:
                             await self._generate_login()
+                            continue
                         except:
                             raise errors.Unauthorized(
                                 "Your oauth token is invalid, and a new one could not be generated"
                             )
-                    print(resp.reason, message_json, resp)
-                    raise errors.Unauthorized("You're not authorized to use this route.")
-                if resp.status == 429:
+
+                    raise errors.Unauthorized(
+                        "You're not authorized to use this route.",
+                        reason=message_json.get("message", ""),
+                        status=resp.status,
+                    )
+
+                elif resp.status == 429:
                     reason = "Ratelimit Reached"
 
                     if not utilize_bucket:  # non Helix APIs don't have ratelimit headers
                         await asyncio.sleep(3**attempt + 1)
+
                     continue
-                raise errors.HTTPException(
-                    f"Failed to fulfil request ({resp.status}).", reason=resp.reason, status=resp.status
-                )
+
+                raise errors.HTTPException(f"Failed to fulfill the request", reason=resp.reason, status=resp.status)
         raise errors.HTTPException("Failed to reach Twitch API", reason=reason, status=resp.status)
 
     async def _generate_login(self):
@@ -421,7 +440,7 @@ class TwitchHTTP:
             "prompt": prompt,
             "cost": cost,
             "background_color": background_color,
-            "enabled": enabled,
+            "is_enabled": enabled,
             "is_user_input_required": input_required,
             "is_max_per_stream_enabled": max_per_stream_enabled,
             "max_per_stream": max_per_stream,
@@ -717,14 +736,29 @@ class TwitchHTTP:
         return await self.request(Route("GET", "channels", query=q, token=token))
 
     async def patch_channel(
-        self, token: str, broadcaster_id: str, game_id: str = None, language: str = None, title: str = None
+        self,
+        token: str,
+        broadcaster_id: str,
+        game_id: str = None,
+        language: str = None,
+        title: str = None,
+        content_classification_labels: List[Dict[str, Union[str, bool]]] = None,
+        is_branded_content: bool = None,
     ):
-        assert any((game_id, language, title))
+        assert any((game_id, language, title, content_classification_labels, is_branded_content))
         body = {
             k: v
-            for k, v in {"game_id": game_id, "broadcaster_language": language, "title": title}.items()
+            for k, v in {
+                "game_id": game_id,
+                "broadcaster_language": language,
+                "title": title,
+                "is_branded_content": is_branded_content,
+            }.items()
             if v is not None
         }
+
+        if content_classification_labels is not None:
+            body["content_classification_labels"] = content_classification_labels
 
         return await self.request(
             Route("PATCH", "channels", query=[("broadcaster_id", broadcaster_id)], body=body, token=token)
@@ -1136,3 +1170,11 @@ class TwitchHTTP:
 
     async def get_channel_chat_badges(self, broadcaster_id: str):
         return await self.request(Route("GET", "chat/badges", "", query=[("broadcaster_id", broadcaster_id)]))
+
+    async def get_content_classification_labels(self, locale: str):
+        return await self.request(Route("GET", "content_classification_labels", "", query=[("locale", locale)]))
+
+    async def get_channel_charity_campaigns(self, broadcaster_id: str, token: str):
+        return await self.request(
+            Route("GET", "charity/campaigns", query=[("broadcaster_id", broadcaster_id)], token=token)
+        )

@@ -819,12 +819,32 @@ class Client:
 
         Fetches Twitch's list of chat badges, which users may use in any channel's chat room.
 
-        Returns:
+        Returns
+        --------
         List[:class:`twitchio.ChatBadge`]
         """
 
         data = await self._http.get_global_chat_badges()
         return [models.ChatBadge(x) for x in data]
+
+    async def fetch_content_classification_labels(self, locale: Optional[str] = None):
+        """|coro|
+
+        Fetches information about Twitch content classification labels.
+
+        Parameters
+        -----------
+        locale: Optional[:class:`str`]
+            Locale for the Content Classification Labels.
+            You may specify a maximum of 1 locale. Default: “en-US”
+
+        Returns
+        --------
+        List[:class:`twitchio.ContentClassificationLabel`]
+        """
+        locale = "en-US" if locale is None else locale
+        data = await self._http.get_content_classification_labels(locale)
+        return [models.ContentClassificationLabel(x) for x in data]
 
     async def get_webhook_subscriptions(self):
         """|coro|

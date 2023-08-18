@@ -79,6 +79,9 @@ __all__ = (
     "ShieldStatus",
     "ChatBadge",
     "ChatBadgeVersions",
+    "ContentClassificationLabel",
+    "CharityValues",
+    "CharityCampaign",
 )
 
 
@@ -1090,9 +1093,23 @@ class ChannelInfo:
         This defaults to 0 if the broadcaster_id does not match the user access token.
     tags: List[:class:`str`]
         The tags applied to the channel.
+    content_classification_labels: List[:class:`str`]
+        The CCLs applied to the channel.
+    is_branded_content: :class:`bool`
+        Boolean flag indicating if the channel has branded content.
     """
 
-    __slots__ = ("user", "game_id", "game_name", "title", "language", "delay", "tags")
+    __slots__ = (
+        "user",
+        "game_id",
+        "game_name",
+        "title",
+        "language",
+        "delay",
+        "tags",
+        "content_classification_labels",
+        "is_branded_content",
+    )
 
     def __init__(self, http: "TwitchHTTP", data: dict):
         self.user = PartialUser(http, data["broadcaster_id"], data["broadcaster_name"])
@@ -1102,6 +1119,8 @@ class ChannelInfo:
         self.language: str = data["broadcaster_language"]
         self.delay: int = data["delay"]
         self.tags: List[str] = data["tags"]
+        self.content_classification_labels: List[str] = data["content_classification_labels"]
+        self.is_branded_content: bool = data["is_branded_content"]
 
     def __repr__(self):
         return f"<ChannelInfo user={self.user} game_id={self.game_id} game_name={self.game_name} title={self.title} language={self.language} delay={self.delay}>"
@@ -1894,3 +1913,106 @@ class ChatBadgeVersions:
 
     def __repr__(self):
         return f"<ChatBadgeVersions id={self.id} title={self.title}>"
+
+
+class ContentClassificationLabel:
+    """
+    Represents a Content Classification Label.
+
+    Attributes
+    -----------
+    id: :class:`str`
+        Unique identifier for the CCL.
+    description: :class:`str`
+        Localized description of the CCL.
+    name: :class:`str`
+        Localized name of the CCL.
+    """
+
+    __slots__ = ("id", "description", "name")
+
+    def __init__(self, data: dict):
+        self.id: str = data["id"]
+        self.description: str = data["description"]
+        self.name: str = data["name"]
+
+    def __repr__(self):
+        return f"<ContentClassificationLabel id={self.id}>"
+
+
+class CharityValues:
+    """
+    Represents the current/target funds of a charity campaign.
+
+    Attributes
+    -----------
+    value: :class:`int`
+        The value of the campaign (either so far, or the target value).
+    decimal_places: :class:`int`
+        The decimal places to be inserted into :attr:`.value`.
+    currency: :class:`str`
+        The currency this charity is raising funds in. eg ``USD``, ``GBP``, ``EUR``.
+    """
+
+    __slots__ = ("value", "decimal_places", "currency")
+
+    def __init__(self, data: dict) -> None:
+        self.value: int = data["value"]
+        self.decimal_places: int = data["decimal_places"]
+        self.currency: str = data["currency"]
+
+    def __repr__(self) -> str:
+        return f"<CharityValues value={self.value} decimal_places={self.decimal_places} currency={self.currency}>"
+
+
+class CharityCampaign:
+    """
+    Represents a Charity Campaign on a channel.
+
+    Attributes
+    -----------
+    campaign_id: :class:`str`
+        The ID of the running charity campaign.
+    broadcaster: :class:`~twitchio.PartialUser`
+        The broadcaster running the campaign.
+    user: :class:`~twitchio.PartialUser`
+        The user who donated.
+    charity_name: :class:`str`
+        The name of the charity.
+    charity_description: :class:`str`
+        The description of the charity.
+    charity_logo: :class:`str`
+        The logo of the charity.
+    charity_website: :class:`str`
+        The websiet of the charity.
+    current: :class:`CharityValues`
+        The current funds raised by this campaign.
+    target: :class:`CharityValues`
+        The target funds to be raised for this campaign.
+    """
+
+    __slots__ = (
+        "campaign_id",
+        "broadcaster",
+        "charity_name",
+        "charity_description",
+        "charity_logo",
+        "charity_website",
+        "current",
+        "target",
+    )
+
+    def __init__(self, data: dict, http: TwitchHTTP, broadcaster: PartialUser | None = None) -> None:
+        self.campaign_id: str = data["campaign_id"]
+        self.broadcaster: PartialUser = broadcaster or PartialUser(
+            http, data["broadcaster_id"], data["broadcaster_name"]
+        )
+        self.charity_name: str = data["charity_name"]
+        self.charity_description: str = data["charity_description"]
+        self.charity_logo: str = data["charity_logo"]
+        self.charity_website: str = data["charity_website"]
+        self.current: CharityValues = CharityValues(data["current_amount"])
+        self.target: CharityValues = CharityValues(data["target_amount"])
+
+    def __repr__(self) -> str:
+        return f"<CharityCampaign broadcaster={self.broadcaster} campaign_id={self.campaign_id} charity_name={self.charity_name}>"

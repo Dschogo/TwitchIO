@@ -21,10 +21,11 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
+from __future__ import annotations
 
 import datetime
 import time
-from typing import TYPE_CHECKING, List, Optional, Union, Tuple
+from typing import TYPE_CHECKING, List, Optional, Union, Tuple, Dict
 
 from .enums import BroadcasterTypeEnum, UserTypeEnum
 from .errors import HTTPException, Unauthorized
@@ -35,7 +36,7 @@ from .utils import parse_timestamp
 if TYPE_CHECKING:
     from .http import TwitchHTTP
     from .channel import Channel
-    from .models import BitsLeaderboard, Clip, ExtensionBuilder, Tag, FollowEvent, Prediction
+    from .models import BitsLeaderboard, Clip, ExtensionBuilder, Tag, FollowEvent, Prediction, CharityCampaign
 __all__ = (
     "PartialUser",
     "BitLeaderboardUser",
@@ -878,7 +879,15 @@ class PartialUser:
         )
         return Prediction(self._http, data[0])
 
-    async def modify_stream(self, token: str, game_id: int = None, language: str = None, title: str = None):
+    async def modify_stream(
+        self,
+        token: str,
+        game_id: int = None,
+        language: str = None,
+        title: str = None,
+        content_classification_labels: List[Dict[str, Union[str, bool]]] = None,
+        is_branded_content: bool = None,
+    ):
         """|coro|
 
         Modify stream information
@@ -893,6 +902,19 @@ class PartialUser:
             Optional language of the channel. A language value must be either the ISO 639-1 two-letter code for a supported stream language or “other”.
         title: :class:`str`
             Optional title of the stream.
+        content_classification_labels: List[Dict[:class:`str`, Union[:class:`str`, :class:`bool`]]]
+            List of labels that should be set as the Channel's CCLs.
+        is_branded_content: :class:`bool`
+            Boolean flag indicating if the channel has branded content.
+
+                .. note::
+
+                    Example of a content classification labels
+                    .. code:: py
+
+                        ccl = [{"id": "Gambling", "is_enabled": False}, {"id": "DrugsIntoxication", "is_enabled": False}]
+                        await my_partial_user.modify_stream(token="abcd", content_classification_labels=ccl)
+
         """
         if game_id is not None:
             game_id = str(game_id)
@@ -902,6 +924,8 @@ class PartialUser:
             game_id=game_id,
             language=language,
             title=title,
+            content_classification_labels=content_classification_labels,
+            is_branded_content=is_branded_content,
         )
 
     async def fetch_schedule(
@@ -1610,7 +1634,8 @@ class PartialUser:
         Fetches broadcaster's list of custom chat badges.
         The list is empty if the broadcaster hasn't created custom chat badges.
 
-        Returns:
+        Returns
+        --------
         List[:class:`twitchio.ChatBadge`]
         """
 
@@ -1618,6 +1643,21 @@ class PartialUser:
 
         data = await self._http.get_channel_chat_badges(broadcaster_id=str(self.id))
         return [ChatBadge(x) for x in data]
+
+    async def fetch_charity_campaigns(self, token: str) -> List[CharityCampaign]:
+        """|coro|
+
+        Fetches a list of charity campaigns the broadcaster is running.
+        Requires a user token with the ``channel:read:charity`` scope.
+
+        Returns
+        --------
+        List[:class:`twitchio.CharityCampaign`]
+        """
+        from .models import CharityCampaign
+
+        data = await self._http.get_channel_charity_campaigns(str(self.id), token)
+        return [CharityCampaign(d, self._http, self) for d in data]
 
 
 class BitLeaderboardUser(PartialUser):
