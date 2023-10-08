@@ -82,6 +82,8 @@ __all__ = (
     "ContentClassificationLabel",
     "CharityValues",
     "CharityCampaign",
+    "ChannelFollowerEvent",
+    "ChannelFollowingEvent",
 )
 
 
@@ -291,6 +293,8 @@ class Clip:
     vod_offset: Optional[:class:`int`]
         The zero-based offset, in seconds, to where the clip starts in the video (VOD) or stream.
         This can be None if the parent no longer exists
+    is_featured: :class:`bool`
+        Indicates if the clip is featured or not.
     """
 
     __slots__ = (
@@ -308,6 +312,7 @@ class Clip:
         "thumbnail_url",
         "duration",
         "vod_offset",
+        "is_featured",
     )
 
     def __init__(self, http: "TwitchHTTP", data: dict):
@@ -325,6 +330,7 @@ class Clip:
         self.thumbnail_url: str = data["thumbnail_url"]
         self.duration: float = data["duration"]
         self.vod_offset: Optional[int] = data["vod_offset"]
+        self.is_featured: bool = data["is_featured"]
 
     def __repr__(self):
         return f"<Clip id={self.id} broadcaster={self.broadcaster} creator={self.creator}>"
@@ -508,6 +514,60 @@ class FollowEvent:
 
     def __repr__(self):
         return f"<FollowEvent from_user={self.from_user} to_user={self.to_user} followed_at={self.followed_at}>"
+
+
+class ChannelFollowerEvent:
+    """
+    Represents a ChannelFollowEvent Event.
+
+    Attributes
+    -----------
+    user: Union[:class:`~twitchio.User`, :class:`~twitchio.PartialUser`]
+        The user that followed another user.
+    followed_at: :class:`datetime.datetime`
+        When the follow happened.
+    """
+
+    __slots__ = "user", "followed_at"
+
+    def __init__(
+        self,
+        http: "TwitchHTTP",
+        data: dict,
+    ):
+        self.user: Union[User, PartialUser] = PartialUser(http, data["user_id"], data["user_login"])
+        self.followed_at = parse_timestamp(data["followed_at"])
+
+    def __repr__(self):
+        return f"<ChannelFollowerEvent user={self.user} followed_at={self.followed_at}>"
+
+
+class ChannelFollowingEvent:
+    """
+    Represents a ChannelFollowEvent Event.
+
+    Attributes
+    -----------
+    broadcaster: Union[:class:`~twitchio.User`, :class:`~twitchio.PartialUser`]
+        The user that is following another user.
+    followed_at: :class:`datetime.datetime`
+        When the follow happened.
+    """
+
+    __slots__ = "broadcaster", "followed_at"
+
+    def __init__(
+        self,
+        http: "TwitchHTTP",
+        data: dict,
+    ):
+        self.broadcaster: Union[User, PartialUser] = PartialUser(
+            http, data["broadcaster_id"], data["broadcaster_login"]
+        )
+        self.followed_at = parse_timestamp(data["followed_at"])
+
+    def __repr__(self):
+        return f"<ChannelFollowerEvent user={self.broadcaster} followed_at={self.followed_at}>"
 
 
 class SubscriptionEvent:

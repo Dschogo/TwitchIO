@@ -1,15 +1,50 @@
 :orphan:
 
-Master
+2.8.2
+======
+- ext.commands
+    - Bug fixes
+        - Fixed an issue where built-in converters would raise an internal ``TypeError``.
+
+2.8.1
+======
+- ext.commands
+    - Bug fixes
+        - Fixed an issue where ``CommandNotFound`` couldn't be processed from ``get_context``.
+
+2.8.0
 ======
 - TwitchIO
+    - Additions
+        - Added the new follower / followed endpoints for :class:`~twitchio.PartialUser`:
+            - :func:`~twitchio.PartialUser.fetch_channel_followers`
+            - :func:`~twitchio.PartialUser.fetch_channel_following`
+            - :func:`~twitchio.PartialUser.fetch_channel_follower_count`
+            - :func:`~twitchio.PartialUser.fetch_channel_following_count`
+        - The deprecated methods have had warnings added in the docs.
+        - New models for the new methods have been added:
+            - :class:`~twitchio.ChannelFollowerEvent`
+            - :class:`~twitchio.ChannelFollowingEvent`
+        - New optional ``is_featured`` query parameter for :func:`~twitchio.PartialUser.fetch_clips` 
+        - New attribute :attr:`~twitchio.Clip.is_featured` for :class:`~twitchio.Clip`
+
     - Bug fixes
         - Fix IndexError when getting prefix when empty message is sent in a reply.
 
 - ext.eventsub
     - Bug fixes
         - Fix websocket reconnection event.
+        - Fix another websocket reconnect issue where it tried to decode nonexistent headers.
 
+- ext.commands
+    - Additions
+        - Added support for the following typing constructs in command signatures:
+            - ``Union[A, B]`` / ``A | B``
+            - ``Optional[T]`` / ``T | None``
+            - ``Annotated[T, converter]`` (accessible through the ``typing_extensions`` module on older python versions)
+
+- Docs
+    - Added walkthrough for ext.commands
 
 2.7.0
 ======

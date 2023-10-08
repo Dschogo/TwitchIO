@@ -574,6 +574,7 @@ class TwitchHTTP:
         ids: Optional[List[str]] = None,
         started_at: Optional[datetime.datetime] = None,
         ended_at: Optional[datetime.datetime] = None,
+        is_featured: Optional[bool] = None,
         token: Optional[str] = None,
     ):
         if started_at and started_at.tzinfo is None:
@@ -586,6 +587,7 @@ class TwitchHTTP:
             ("game_id", game_id),
             ("started_at", started_at.isoformat() if started_at else None),
             ("ended_at", ended_at.isoformat() if ended_at else None),
+            ("is_featured", str(is_featured) if is_featured is not None else None),
         ]
         if ids:
             q.extend(("id", id) for id in ids)
@@ -1177,4 +1179,68 @@ class TwitchHTTP:
     async def get_channel_charity_campaigns(self, broadcaster_id: str, token: str):
         return await self.request(
             Route("GET", "charity/campaigns", query=[("broadcaster_id", broadcaster_id)], token=token)
+        )
+
+    async def get_channel_followers(
+        self,
+        token: str,
+        broadcaster_id: str,
+        user_id: Optional[int] = None,
+    ):
+        query = [("broadcaster_id", broadcaster_id)]
+
+        if user_id is not None:
+            query.append(("user_id", str(user_id)))
+
+        return await self.request(
+            Route(
+                "GET",
+                "channels/followers",
+                query=query,
+                token=token,
+            )
+        )
+
+    async def get_channel_followed(
+        self,
+        token: str,
+        user_id: str,
+        broadcaster_id: Optional[int] = None,
+    ):
+        query = [("user_id", user_id)]
+
+        if broadcaster_id is not None:
+            query.append(("broadcaster_id", str(broadcaster_id)))
+
+        return await self.request(
+            Route(
+                "GET",
+                "channels/followed",
+                query=query,
+                token=token,
+            )
+        )
+
+    async def get_channel_follower_count(self, broadcaster_id: str, token: Optional[str] = None):
+        return await self.request(
+            Route(
+                "GET",
+                "channels/followers",
+                query=[("broadcaster_id", broadcaster_id)],
+                token=token,
+            ),
+            full_body=True,
+            paginate=False,
+        )
+
+    async def get_channel_followed_count(self, token: str, user_id: str):
+        return await self.request(
+            Route(
+                "GET",
+                "channels/followed",
+                query=[("user_id", user_id)],
+                token=token,
+            ),
+            full_body=True,
+            paginate=False,
         )
